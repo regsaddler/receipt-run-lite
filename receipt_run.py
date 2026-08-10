@@ -9,12 +9,16 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
+import threading
 import time
-from typing import Any, Sequence
+from typing import Any, BinaryIO, Sequence
 
-SCHEMA = "receipt-run-lite/v0.1"
+SCHEMA = "receipt-run-lite/v0.2"
+DEFAULT_MAX_OUTPUT_BYTES = 8 * 1024 * 1024
+_READ_CHUNK_BYTES = 64 * 1024
 
 
 def _utc_now() -> str:
@@ -65,6 +69,50 @@ def _require_new_paths(paths: Sequence[Path]) -> None:
             raise FileExistsError(f"refusing to overwrite existing output: {path.name}")
 
 
+def _terminate_process(process: subprocess.Popen[bytes]) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+            return
+        except ProcessLookupError:
+            return
+        except OSError:
+            pass
+    process.kill()
+
+
+def _capture_stream(
+    source: BinaryIO,
+    destination: BinaryIO,
+    stream_name: str,
+    *,
+    max_output_bytes: int,
+    captured: dict[str, int],
+    capture_lock: threading.Lock,
+    output_limit_reached: threading.Event,
+    truncated_streams: set[str],
+) -> None:
+    try:
+        while True:
+            chunk = source.read(_READ_CHUNK_BYTES)
+            if not chunk:
+                return
+            with capture_lock:
+                remaining = max_output_bytes - captured["bytes"]
+                if remaining > 0:
+                    kept = chunk[:remaining]
+                    destination.write(kept)
+                    captured["bytes"] += len(kept)
+                if len(chunk) > remaining:
+                    truncated_streams.add(stream_name)
+                    output_limit_reached.set()
+                    return
+    finally:
+        source.close()
+
+
 def run_command(
     command: Sequence[str],
     *,
@@ -72,9 +120,12 @@ def run_command(
     label: str,
     timeout_seconds: float | None,
     record_command: bool,
+    max_output_bytes: int = DEFAULT_MAX_OUTPUT_BYTES,
 ) -> tuple[int, dict[str, Any]]:
     if not command:
         raise ValueError("command must not be empty")
+    if max_output_bytes <= 0:
+        raise ValueError("max_output_bytes must be greater than zero")
 
     receipt_path = receipt_path.resolve()
     stem = receipt_path.name.removesuffix(receipt_path.suffix)
@@ -89,6 +140,9 @@ def run_command(
     started_at = _utc_now()
     started_clock = time.monotonic()
     timed_out = False
+    output_limited = False
+    termination_reason: str | None = None
+    process_tree_kill_supported = os.name == "posix"
 
     created_streams: list[Path] = []
     try:
@@ -104,15 +158,74 @@ def run_command(
         with stdout_handle, stderr_handle:
             process = subprocess.Popen(
                 list(command),
-                stdout=stdout_handle,
-                stderr=stderr_handle,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=process_tree_kill_supported,
             )
-            try:
-                exit_code = process.wait(timeout=timeout_seconds)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                process.kill()
-                exit_code = process.wait()
+            assert process.stdout is not None
+            assert process.stderr is not None
+            captured = {"bytes": 0}
+            capture_lock = threading.Lock()
+            output_limit_reached = threading.Event()
+            truncated_streams: set[str] = set()
+            readers = [
+                threading.Thread(
+                    target=_capture_stream,
+                    args=(process.stdout, stdout_handle, "stdout"),
+                    kwargs={
+                        "max_output_bytes": max_output_bytes,
+                        "captured": captured,
+                        "capture_lock": capture_lock,
+                        "output_limit_reached": output_limit_reached,
+                        "truncated_streams": truncated_streams,
+                    },
+                    daemon=True,
+                ),
+                threading.Thread(
+                    target=_capture_stream,
+                    args=(process.stderr, stderr_handle, "stderr"),
+                    kwargs={
+                        "max_output_bytes": max_output_bytes,
+                        "captured": captured,
+                        "capture_lock": capture_lock,
+                        "output_limit_reached": output_limit_reached,
+                        "truncated_streams": truncated_streams,
+                    },
+                    daemon=True,
+                ),
+            ]
+            for reader in readers:
+                reader.start()
+
+            deadline = (
+                started_clock + timeout_seconds if timeout_seconds is not None else None
+            )
+            while process.poll() is None:
+                if output_limit_reached.is_set():
+                    output_limited = True
+                    termination_reason = "output_limit"
+                    _terminate_process(process)
+                    break
+                wait_seconds = 0.05
+                if deadline is not None:
+                    remaining_seconds = deadline - time.monotonic()
+                    if remaining_seconds <= 0:
+                        timed_out = True
+                        termination_reason = "timeout"
+                        _terminate_process(process)
+                        break
+                    wait_seconds = min(wait_seconds, remaining_seconds)
+                try:
+                    process.wait(timeout=wait_seconds)
+                except subprocess.TimeoutExpired:
+                    pass
+
+            exit_code = process.wait()
+            for reader in readers:
+                reader.join()
+            output_limited = output_limited or output_limit_reached.is_set()
+            if output_limited and termination_reason is None:
+                termination_reason = "output_limit"
     except OSError:
         for stream_path in created_streams:
             stream_path.unlink(missing_ok=True)
@@ -127,6 +240,7 @@ def run_command(
     if record_command:
         command_record["argv"] = list(command)
 
+    runner_exit_code = 3 if output_limited else exit_code
     receipt: dict[str, Any] = {
         "schema": SCHEMA,
         "label": label,
@@ -136,18 +250,25 @@ def run_command(
             "finished_at": _utc_now(),
             "duration_ms": duration_ms,
             "exit_code": exit_code,
+            "runner_exit_code": runner_exit_code,
             "timed_out": timed_out,
+            "output_limited": output_limited,
+            "max_output_bytes": max_output_bytes,
+            "termination_reason": termination_reason,
+            "process_tree_kill_supported": process_tree_kill_supported,
         },
         "outputs": {
             "stdout": {
                 "path": stdout_path.name,
                 "bytes": stdout_path.stat().st_size,
                 "sha256": _sha256_file(stdout_path),
+                "truncated": "stdout" in truncated_streams,
             },
             "stderr": {
                 "path": stderr_path.name,
                 "bytes": stderr_path.stat().st_size,
                 "sha256": _sha256_file(stderr_path),
+                "truncated": "stderr" in truncated_streams,
             },
         },
         "authority": {
@@ -157,7 +278,7 @@ def run_command(
         },
     }
     _atomic_json(receipt_path, receipt)
-    return exit_code, receipt
+    return runner_exit_code, receipt
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -170,6 +291,15 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", required=True, type=Path, help="Receipt JSON path.")
     parser.add_argument("--label", default="command-run", help="Public-safe run label.")
     parser.add_argument("--timeout", type=float, help="Kill the command after this many seconds.")
+    parser.add_argument(
+        "--max-output-bytes",
+        type=int,
+        default=DEFAULT_MAX_OUTPUT_BYTES,
+        help=(
+            "Combined stdout/stderr byte ceiling before termination "
+            f"(default: {DEFAULT_MAX_OUTPUT_BYTES})."
+        ),
+    )
     parser.add_argument(
         "--record-command",
         action="store_true",
@@ -189,6 +319,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("a command is required after --")
     if args.timeout is not None and args.timeout <= 0:
         parser.error("--timeout must be greater than zero")
+    if args.max_output_bytes <= 0:
+        parser.error("--max-output-bytes must be greater than zero")
     try:
         exit_code, _ = run_command(
             command,
@@ -196,6 +328,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             label=args.label,
             timeout_seconds=args.timeout,
             record_command=args.record_command,
+            max_output_bytes=args.max_output_bytes,
         )
     except (FileExistsError, OSError) as error:
         sys.stderr.write(f"receipt-run-lite: {error}\n")
