@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +20,7 @@ class ReceiptRunTests(unittest.TestCase):
             text=True,
             capture_output=True,
             check=False,
+            timeout=10,
         )
 
     def test_success_writes_hashed_streams_without_raw_argv(self) -> None:
@@ -35,8 +38,10 @@ class ReceiptRunTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads(receipt.read_text(encoding="utf-8"))
-            self.assertEqual(payload["schema"], "receipt-run-lite/v0.1")
+            self.assertEqual(payload["schema"], "receipt-run-lite/v0.2")
             self.assertEqual(payload["execution"]["exit_code"], 0)
+            self.assertFalse(payload["execution"]["output_limited"])
+            self.assertEqual(payload["execution"]["max_output_bytes"], 8 * 1024 * 1024)
             self.assertFalse(payload["command"]["argv_recorded"])
             self.assertNotIn("argv", payload["command"])
             self.assertEqual((Path(directory) / "run.stdout").read_text(), "hello\n")
@@ -91,6 +96,76 @@ class ReceiptRunTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             payload = json.loads(receipt.read_text(encoding="utf-8"))
             self.assertTrue(payload["execution"]["timed_out"])
+            self.assertEqual(payload["execution"]["termination_reason"], "timeout")
+
+    def test_combined_output_limit_is_enforced(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = Path(directory) / "bounded.json"
+            result = self.invoke(
+                "--output",
+                str(receipt),
+                "--max-output-bytes",
+                "1024",
+                "--",
+                sys.executable,
+                "-c",
+                "import os; os.write(1, b'x' * 4096); os.write(2, b'y' * 4096)",
+            )
+            self.assertNotEqual(result.returncode, 0)
+            payload = json.loads(receipt.read_text(encoding="utf-8"))
+            total = sum(payload["outputs"][name]["bytes"] for name in ("stdout", "stderr"))
+            self.assertLessEqual(total, 1024)
+            self.assertTrue(payload["execution"]["output_limited"])
+            self.assertEqual(payload["execution"]["runner_exit_code"], 3)
+            self.assertEqual(payload["execution"]["termination_reason"], "output_limit")
+            self.assertTrue(any(payload["outputs"][name]["truncated"] for name in ("stdout", "stderr")))
+
+    @unittest.skipUnless(os.name == "posix", "process-group termination requires POSIX")
+    def test_timeout_terminates_same_session_grandchild(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = Path(directory) / "tree.json"
+            marker = Path(directory) / "grandchild-survived.txt"
+            child = (
+                "import pathlib,time; time.sleep(0.35); "
+                f"pathlib.Path({str(marker)!r}).write_text('alive')"
+            )
+            parent = (
+                "import subprocess,sys,time; "
+                f"subprocess.Popen([sys.executable, '-c', {child!r}]); "
+                "time.sleep(5)"
+            )
+            result = self.invoke(
+                "--output",
+                str(receipt),
+                "--timeout",
+                "0.05",
+                "--",
+                sys.executable,
+                "-c",
+                parent,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            time.sleep(0.5)
+            payload = json.loads(receipt.read_text(encoding="utf-8"))
+            self.assertTrue(payload["execution"]["process_tree_kill_supported"])
+            self.assertFalse(marker.exists())
+
+    def test_nonpositive_output_limit_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = Path(directory) / "invalid.json"
+            result = self.invoke(
+                "--output",
+                str(receipt),
+                "--max-output-bytes",
+                "0",
+                "--",
+                sys.executable,
+                "-c",
+                "pass",
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("--max-output-bytes must be greater than zero", result.stderr)
+            self.assertFalse(receipt.exists())
 
     def test_existing_stream_is_never_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
