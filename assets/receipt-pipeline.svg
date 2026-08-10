@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Unsigned execution receipt pipeline</title>
+  <desc id="desc">A command is captured into separate standard output and standard error streams, measured and hashed, then recorded in an unsigned JSON receipt with explicit authority limits.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071b2a"/>
+      <stop offset="1" stop-color="#102c3b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" rx="24" fill="url(#bg)"/>
+  <g fill="#f2efe7" font-family="Georgia, 'Times New Roman', serif" font-size="26">
+    <text x="55" y="55">Command</text>
+    <text x="300" y="55">Captured streams</text>
+    <text x="680" y="55">Measured evidence</text>
+    <text x="985" y="55">Receipt</text>
+  </g>
+  <g fill="none" stroke-width="2">
+    <path d="M190 178 H300" stroke="#c9825b"/>
+    <path d="M530 134 C600 134 605 124 680 124" stroke="#78d4d1"/>
+    <path d="M530 222 C600 222 605 232 680 232" stroke="#d9d4c7"/>
+    <path d="M900 124 C950 124 945 155 985 155" stroke="#78d4d1"/>
+    <path d="M900 232 C950 232 945 205 985 205" stroke="#d9d4c7"/>
+  </g>
+  <g>
+    <rect x="55" y="124" width="135" height="108" rx="18" fill="#2b2528" stroke="#c9825b" stroke-width="2"/>
+    <path d="M88 164 L111 178 L88 192" fill="none" stroke="#f0ad82" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M123 195 H158" stroke="#f2efe7" stroke-width="4" stroke-linecap="round"/>
+    <text x="122" y="266" text-anchor="middle" fill="#9bb1ba" font-family="'Courier New', monospace" font-size="13">non-interactive</text>
+  </g>
+  <g font-family="'Courier New', monospace">
+    <rect x="300" y="92" width="230" height="84" rx="14" fill="#123845" stroke="#78d4d1" stroke-width="2"/>
+    <text x="328" y="126" fill="#d9f3f0" font-size="15">stdout</text>
+    <path d="M328 146 H495" stroke="#78d4d1" stroke-width="5" stroke-dasharray="18 8"/>
+    <rect x="300" y="180" width="230" height="84" rx="14" fill="#302b2b" stroke="#d9d4c7" stroke-width="2"/>
+    <text x="328" y="214" fill="#f2efe7" font-size="15">stderr</text>
+    <path d="M328 234 H495" stroke="#d9d4c7" stroke-width="5" stroke-dasharray="10 7"/>
+  </g>
+  <g font-family="'Courier New', monospace" font-size="14">
+    <rect x="680" y="88" width="220" height="72" rx="14" fill="#123845" stroke="#78d4d1" stroke-width="2"/>
+    <text x="708" y="119" fill="#d9f3f0">bytes</text>
+    <text x="708" y="143" fill="#d9f3f0">sha256</text>
+    <rect x="680" y="196" width="220" height="72" rx="14" fill="#302b2b" stroke="#d9d4c7" stroke-width="2"/>
+    <text x="708" y="227" fill="#f2efe7">exit code</text>
+    <text x="708" y="251" fill="#f2efe7">elapsed time</text>
+  </g>
+  <g>
+    <rect x="985" y="91" width="165" height="174" rx="18" fill="#132f3d" stroke="#8da7b1" stroke-width="2"/>
+    <path d="M1015 126 H1118 M1015 153 H1118 M1015 180 H1080" stroke="#78d4d1" stroke-width="4" stroke-linecap="round"/>
+    <path d="M1015 217 H1118" stroke="#c9825b" stroke-width="3" stroke-dasharray="5 6"/>
+    <text x="1067" y="242" text-anchor="middle" fill="#f0ad82" font-family="'Courier New', monospace" font-size="12">unsigned JSON</text>
+  </g>
+  <rect x="55" y="305" width="1095" height="31" rx="10" fill="#0b2231" stroke="#344f5c"/>
+  <text x="602" y="326" text-anchor="middle" fill="#b9c6c9" font-family="'Courier New', monospace" font-size="13">signed=false  |  independently_validated=false  |  correctness_established=false</text>
+</svg>
