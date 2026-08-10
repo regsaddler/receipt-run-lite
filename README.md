@@ -30,6 +30,8 @@ inspectable without pretending that a successful command proves correctness.
 python3 -B receipt_run.py \
   --output receipts/self-test.json \
   --label semantic-entropy-self-test \
+  --timeout 120 \
+  --max-output-bytes 8388608 \
   -- python3 -B semantic_entropy.py --self-test
 ```
 
@@ -50,6 +52,14 @@ contain tokens or private paths. `--record-command` is an explicit opt-in.
 Do not place secrets in command-line arguments: a hash is not a safe disguise
 for a low-entropy secret.
 
+Version 0.2 caps combined stdout and stderr at 8 MiB by default. Reaching the
+cap terminates the command and records `output_limited`, the ceiling, and which
+stream was truncated. The wrapper exits `3` whenever output was truncated,
+even if a fast child had already exited `0`; the child's own exit code remains
+in the receipt. `--max-output-bytes` changes the ceiling explicitly.
+On POSIX systems, timeout and output-limit termination target the command's
+new process group so ordinary descendants do not outlive the receipt runner.
+
 ## Test
 
 ```bash
@@ -61,7 +71,8 @@ python3 -B -m unittest discover -s tests -v
 The JSON is unsigned and produced by the same local executor that ran the
 command. It does not establish identity, independent validation, scientific
 correctness, safety, or authorization. It preserves an observation for later
-review. Timeout handling terminates the direct process only; this utility does
-not provide process-tree isolation or a security sandbox.
+review. Process-group termination is best-effort containment, not a security
+sandbox: descendants that deliberately create a new session can escape it,
+and non-POSIX systems fall back to terminating the direct process.
 
 MIT License.
