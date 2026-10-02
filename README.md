@@ -2,20 +2,41 @@
 
 [![tests](https://github.com/regsaddler/receipt-run-lite/actions/workflows/test.yml/badge.svg)](https://github.com/regsaddler/receipt-run-lite/actions/workflows/test.yml)
 
-<p align="center">
-  <img src="assets/receipt-stream.jpg" alt="A command becomes two measured output streams and an unsigned receipt" width="100%">
-</p>
-
 A single-file, standard-library command wrapper that records what a process
 actually returned: exit code, timing, byte counts, and SHA-256 hashes for
 stdout and stderr.
 
-It is intentionally small. For signed software-supply-chain attestations,
-material/product rules, and delegated trust, use a mature system such as
-[in-toto](https://in-toto.io/). This project is a transparent local receipt,
-not a replacement for in-toto or SLSA provenance.
+**An unsigned local observation. A successful command does not prove correctness.**
 
-## Why it exists
+[Quickstart](#quickstart) · [How it works](#how-it-works) · [Limits](#what-the-receipt-does-not-prove)
+
+## Quickstart
+
+Use Git and Python 3.10 or newer. No third-party Python packages are required.
+
+```bash
+git clone https://github.com/regsaddler/receipt-run-lite.git
+cd receipt-run-lite
+python3 -B receipt_run.py \
+  --output receipts/hello.json \
+  --label hello-demo \
+  -- python3 -c "print('hello')"
+python3 -m json.tool receipts/hello.json
+```
+
+This self-contained example creates three files:
+
+| File | Contents |
+| --- | --- |
+| `receipts/hello.json` | Exit status, timing, output sizes and hashes |
+| `receipts/hello.stdout` | `hello` followed by a newline |
+| `receipts/hello.stderr` | Empty for this example |
+
+**Choose a new output name for every run.** The wrapper refuses to overwrite
+any existing receipt or stream path. To record your own command, replace the
+command after `--` and choose a fresh receipt path.
+
+## How it works
 
 "The test passed" is prose. A receipt makes the narrower observation
 inspectable without pretending that a successful command proves correctness.
@@ -24,31 +45,14 @@ inspectable without pretending that a successful command proves correctness.
   <img src="assets/receipt-pipeline.svg" alt="Command output is captured, hashed, measured, and written to an unsigned JSON receipt" width="100%">
 </p>
 
-## Use
-
-```bash
-python3 -B receipt_run.py \
-  --output receipts/self-test.json \
-  --label semantic-entropy-self-test \
-  -- python3 -B semantic_entropy.py --self-test
-```
-
-The wrapper creates three files:
-
-```text
-receipts/self-test.json
-receipts/self-test.stdout
-receipts/self-test.stderr
-```
-
-It refuses to overwrite any existing receipt or stream path and refuses to
-follow stream symlinks on platforms that expose `O_NOFOLLOW`. Output files are
-created with owner-only permissions. Choose a new output name for every run.
+Output files are created with owner-only permissions. The wrapper refuses to
+follow stream symlinks on platforms that expose `O_NOFOLLOW`.
 
 Raw command arguments are omitted by default because command lines often
 contain tokens or private paths. `--record-command` is an explicit opt-in.
-Do not place secrets in command-line arguments: a hash is not a safe disguise
-for a low-entropy secret.
+Captured stdout and stderr can still contain sensitive data; inspect them
+before sharing. Do not place secrets in command-line arguments: a hash is not
+a safe disguise for a low-entropy secret.
 
 ## Test
 
@@ -63,5 +67,13 @@ command. It does not establish identity, independent validation, scientific
 correctness, safety, or authorization. It preserves an observation for later
 review. Timeout handling terminates the direct process only; this utility does
 not provide process-tree isolation or a security sandbox.
+
+For signed software-supply-chain attestations, material/product rules, and
+delegated trust, use a mature system such as [in-toto](https://in-toto.io/).
+This project is not a replacement for in-toto or SLSA provenance.
+
+<p align="center">
+  <img src="assets/receipt-stream.jpg" alt="A command becomes two measured output streams and an unsigned receipt" width="100%">
+</p>
 
 MIT License.
