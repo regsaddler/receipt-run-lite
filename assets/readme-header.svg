@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 344" role="img" aria-labelledby="title desc">
+<title id="title">CAPTURE THE RUN. KEEP THE RECEIPT.</title>
+<desc id="desc">A local command. An inspectable record. Decorative geometric illustration; no measured results are depicted.</desc>
+<defs><pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#b9d3e3" stroke-opacity=".045"/></pattern></defs>
+<rect x="1" y="1" width="1278" height="342" rx="16" fill="#0b141e" stroke="#304252"/>
+<rect x="2" y="2" width="1276" height="340" rx="15" fill="url(#grid)"/>
+<path d="M52 48h30" stroke="#84e6b2" stroke-width="3"/>
+<text x="96" y="53" fill="#84e6b2" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="2">PUBLIC TOOL / RECEIPT-RUN-LITE</text>
+<text x="50" y="139" fill="#f0f6fc" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" letter-spacing="-1.8">CAPTURE THE RUN.</text>
+<text x="50" y="203" fill="#f0f6fc" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" letter-spacing="-1.8">KEEP THE RECEIPT.</text>
+<text x="53" y="254" fill="#acbdcd" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="400" letter-spacing="0">A local command. An inspectable record.</text>
+<path d="M53 292h650" stroke="#304252"/>
+<text x="53" y="316" fill="#8196aa" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="400" letter-spacing="2">SOURCE / METHOD / LIMITS</text>
+<path d="M745 64v217" stroke="#304252"/>
+<path d="M786 122h71l32 47h71M786 235h71l32-47h71" fill="none" stroke="#84e6b2" stroke-opacity=".6" stroke-width="2"/><circle cx="786" cy="122" r="5" fill="#84e6b2"/><circle cx="786" cy="235" r="5" fill="#84e6b2"/><circle cx="889" cy="178" r="5" fill="#84e6b2"/><rect x="960" y="72" width="186" height="205" rx="9" fill="#101f2a" stroke="#84e6b2" stroke-opacity=".65"/><path d="M983 118h110" fill="none" stroke="#84e6b2" stroke-opacity=".9" stroke-width="3"/><path d="M983 148h138" fill="none" stroke="#84e6b2" stroke-opacity=".5" stroke-width="3"/><path d="M983 178h87" fill="none" stroke="#84e6b2" stroke-opacity=".5" stroke-width="3"/><path d="M983 208h126" fill="none" stroke="#84e6b2" stroke-opacity=".5" stroke-width="3"/><path d="M983 252h65" fill="none" stroke="#84e6b2" stroke-opacity=".9" stroke-width="3"/><path d="M1078 252v-10" fill="none" stroke="#84e6b2" stroke-opacity=".75" stroke-width="2"/><path d="M1085 252v-18" fill="none" stroke="#84e6b2" stroke-opacity=".75" stroke-width="2"/><path d="M1092 252v-12" fill="none" stroke="#84e6b2" stroke-opacity=".75" stroke-width="2"/><path d="M1099 252v-24" fill="none" stroke="#84e6b2" stroke-opacity=".75" stroke-width="2"/><path d="M1106 252v-16" fill="none" stroke="#84e6b2" stroke-opacity=".75" stroke-width="2"/><path d="M1113 252v-25" fill="none" stroke="#84e6b2" stroke-opacity=".75" stroke-width="2"/><path d="M1120 252v-11" fill="none" stroke="#84e6b2" stroke-opacity=".75" stroke-width="2"/>
+</svg>

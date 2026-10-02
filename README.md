@@ -1,3 +1,7 @@
+<p>
+  <img src="assets/readme-header.svg" alt="CAPTURE THE RUN. KEEP THE RECEIPT. A local command. An inspectable record." width="100%">
+</p>
+
 # receipt-run-lite
 
 [![tests](https://github.com/regsaddler/receipt-run-lite/actions/workflows/test.yml/badge.svg)](https://github.com/regsaddler/receipt-run-lite/actions/workflows/test.yml)
@@ -9,6 +13,8 @@ stdout and stderr.
 **An unsigned local observation. A successful command does not prove correctness.**
 
 [Quickstart](#quickstart) · [How it works](#how-it-works) · [Limits](#what-the-receipt-does-not-prove)
+
+---
 
 ## Quickstart
 
@@ -45,6 +51,8 @@ inspectable without pretending that a successful command proves correctness.
   <img src="assets/receipt-pipeline.svg" alt="Command output is captured, hashed, measured, and written to an unsigned JSON receipt" width="100%">
 </p>
 
+### Output handling
+
 Output files are created with owner-only permissions. The wrapper refuses to
 follow stream symlinks on platforms that expose `O_NOFOLLOW`.
 
@@ -60,6 +68,8 @@ a safe disguise for a low-entropy secret.
 python3 -B -m unittest discover -s tests -v
 ```
 
+---
+
 ## What the receipt does not prove
 
 The JSON is unsigned and produced by the same local executor that ran the
@@ -72,8 +82,19 @@ For signed software-supply-chain attestations, material/product rules, and
 delegated trust, use a mature system such as [in-toto](https://in-toto.io/).
 This project is not a replacement for in-toto or SLSA provenance.
 
+<details>
+<summary>Receipt illustration</summary>
+
 <p align="center">
   <img src="assets/receipt-stream.jpg" alt="A command becomes two measured output streams and an unsigned receipt" width="100%">
 </p>
 
+</details>
+
 MIT License.
+
+---
+
+<sub>PUBLIC RESEARCH TOOLS</sub>
+
+[Reg Saddler](https://github.com/regsaddler) · [receipt-run-lite](https://github.com/regsaddler/receipt-run-lite) · [semantic-entropy](https://github.com/regsaddler/semantic-entropy) · [Difference Theory](https://differencetheory.com)
