@@ -75,8 +75,10 @@ python3 -B -m unittest discover -s tests -v
 The JSON is unsigned and produced by the same local executor that ran the
 command. It does not establish identity, independent validation, scientific
 correctness, safety, or authorization. It preserves an observation for later
-review. Timeout handling terminates the direct process only; this utility does
-not provide process-tree isolation or a security sandbox.
+review. On POSIX systems timeout handling starts a new process group and kills
+that group, preventing ordinary descendants from surviving the deadline. Other
+platforms terminate only the direct process. This utility is not a security
+sandbox and cannot contain processes that deliberately escape their group.
 
 For signed software-supply-chain attestations, material/product rules, and
 delegated trust, use a mature system such as [in-toto](https://in-toto.io/).

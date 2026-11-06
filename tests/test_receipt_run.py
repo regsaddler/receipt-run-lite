@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,6 +92,35 @@ class ReceiptRunTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             payload = json.loads(receipt.read_text(encoding="utf-8"))
             self.assertTrue(payload["execution"]["timed_out"])
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX process groups required")
+    def test_timeout_terminates_descendant_processes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = Path(directory) / "tree-timeout.json"
+            marker = Path(directory) / "descendant-survived"
+            child = (
+                "import pathlib,time; time.sleep(0.4); pathlib.Path("
+                + repr(str(marker))
+                + ").write_text('survived')"
+            )
+            parent = (
+                "import subprocess,sys,time; subprocess.Popen([sys.executable, '-c', "
+                + repr(child)
+                + "]); time.sleep(5)"
+            )
+            result = self.invoke(
+                "--output",
+                str(receipt),
+                "--timeout",
+                "0.1",
+                "--",
+                sys.executable,
+                "-c",
+                parent,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            time.sleep(0.6)
+            self.assertFalse(marker.exists(), "timed-out descendant remained alive")
 
     def test_existing_stream_is_never_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

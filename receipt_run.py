@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import time
@@ -65,6 +66,17 @@ def _require_new_paths(paths: Sequence[Path]) -> None:
             raise FileExistsError(f"refusing to overwrite existing output: {path.name}")
 
 
+def _terminate_process(process: subprocess.Popen[bytes]) -> None:
+    """Terminate the launched process and its POSIX process group."""
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    else:
+        process.kill()
+
+
 def run_command(
     command: Sequence[str],
     *,
@@ -106,12 +118,13 @@ def run_command(
                 list(command),
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                start_new_session=os.name == "posix",
             )
             try:
                 exit_code = process.wait(timeout=timeout_seconds)
             except subprocess.TimeoutExpired:
                 timed_out = True
-                process.kill()
+                _terminate_process(process)
                 exit_code = process.wait()
     except OSError:
         for stream_path in created_streams:
